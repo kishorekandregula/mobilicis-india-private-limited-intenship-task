@@ -1,0 +1,42 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git credentialsId: '730eb5e5-df4d-4bcb-bd07-afd17505f319', url: 'https://github.com/kishorekandregula/maven-web-app.git'
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                sh 'mvn clean package'
+            }
+        }
+    
+        stage('Deploy') {
+            steps {
+                sh '''
+                    export AWS_ACCESS_KEY_ID=your-access-key-id
+                    export AWS_SECRET_ACCESS_KEY=your-secret-access-key
+                    export AWS_DEFAULT_REGION=your-aws-region
+                    
+                    # Install AWS CLI (if not already installed)
+                    curl "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" -o "awscli-bundle.zip"
+                    unzip awscli-bundle.zip
+                    sudo ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws
+                    aws --version
+                    
+                    # Copy artifacts to the EC2 instance
+                    aws s3 cp your-app.jar s3://your-bucket/
+                    
+                    # SSH into the EC2 instance and deploy the new code
+                    ssh -i your-key.pem ec2-user@your-ec2-instance-ip "sudo service your-app stop"
+                    ssh -i your-key.pem ec2-user@your-ec2-instance-ip "aws s3 cp s3://your-bucket/your-app.jar /opt/your-app/"
+                    ssh -i your-key.pem ec2-user@your-ec2-instance-ip "sudo service your-app start"
+                '''
+            }
+        }
+    }
+}
+
